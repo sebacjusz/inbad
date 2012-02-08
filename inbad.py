@@ -16,11 +16,11 @@ import inba-cfg as conf
 
 class IRCBot(irc.IRCClient):
     def __init__(self):
-        self.bvars={'ircc':self, 
+        self.bvars={'s':self, 'svc':self.factory.srv,
                 'Y': lambda f: (lambda x: x(x))(lambda y: f(lambda *args: y(y)(*args))) } #super ycombinator kurwo
         self.bvars.update(globals())
         #self.bvars = dict( (k, self.bvars[k]) for k in self.bvars if not k == k.upper() )
-        del self.bvars['conf']
+        del self.bvars['conf']  #nie dla psa hasla
         self.bvars['msg_cb']={}
         self.authed_users=set()
         self.last_cmd=time.time()
@@ -62,36 +62,36 @@ class IRCBot(irc.IRCClient):
             ev = eval(args, self.bvars)
             return self.say(channel, unicode(ev).encode('utf-8'), conf.MAXLEN)
         except:
-            return self.msg(channel,"\x02\x034%s" % repr(sys.exc_info()[1]))
+            return self.say(channel,"\x02\x034%s" % repr(sys.exc_info()[1]))
 
     def c_set(self, user, chan, args, assign_cmd=False, msg_cb=False):
-        if args:
-            al = args.split(None, 1)
-            if len(al)==1:
-                if al[0] in self.bvars:
-                    self.msg(chan, unicode(self.bvars[al[0]]).encode('utf-8'), conf.MAXLEN)
-                else:
-                    self.msg(chan, 'variable not found')
+        if not args:
+            return self.say(chan, ("known terms: %s" % ','.join(map(unicode, self.bvars))).encode('utf-8'), conf.MAXLEN)
+        al = args.split(None, 1)
+        if len(al)==1:  #display value
+            if al[0] in self.bvars:
+                self.say(chan, unicode(self.bvars[al[0]]).encode('utf-8'), conf.MAXLEN)
             else:
-                try:
-                    if msg_cb:
-                        t =eval(args, self.bvars)
-                        if type(t[0]) == str and callable(t[1]):
-                            self.bvars['msg_cb'][t[0]]=(re.compile(t[0], re.IGNORECASE), lambda u,m,a: t[1](self,u,m,a))
-                            return
-                        else:
-                            return self.msg(chan, '\x034err\x03')
+                self.say(chan, 'variable not found')
+        else:
+            try:
+                if msg_cb:
+                    t =eval(args, self.bvars)
+                    if type(t[0]) == str and callable(t[1]):
+                        self.bvars['msg_cb'][t[0]]=(re.compile(t[0], re.IGNORECASE), t[1])
+                    else:
+                        return self.say(chan, '\x034err\x03')
+                else:
                     t =eval(al[1], self.bvars)
                     self.bvars[al[0]] = t
-                    if assign_cmd and callable(t):
-                        self.commands['!'+al[0]]=lambda u,c,a: t(self,u,c,a)
-                    elif assign_cmd:
-                        self.msg(chan, '\x034err\x03')
-                    self.msg(chan, '\x033ok\x03')
-                except:
-                        self.msg(chan,"\x02\x034%s" % repr(sys.exc_info()[1]))
-        else:
-            self.msg(chan, ("known terms: %s" % ','.join(map(unicode, self.bvars))).encode('utf-8'), conf.MAXLEN)
+                    if assign_cmd:
+                        if callable(t):
+                            self.commands['!'+al[0]]=t
+                        else:
+                            return self.say(chan, '\x034 %s is not callable\x03' % str(type(t)))
+                self.say(chan, '\x033ok\x03')
+            except:
+                self.say(chan,"\x02\x034%s" % repr(sys.exc_info()[1]))
 
     def signedOn(self):
         self.msg('nickserv', 'identify ' + conf.NICKSERV_PASS)
