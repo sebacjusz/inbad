@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+filters=['compand', '0.3,0.8', '9:-80,-70,-25', '-5', '-90', '0.5', 'pad', '0', '2']
+jng_dir='/anon/rcp/jng/'
+jng_list=[i for i in os.listdir(jng_dir) if os.path.isfile(jng_dir+i)]
+safe_params=('artist', 'title', 'file', 'bitrate', 'genre', 'listener_peak', 'listeners',
+        'server_description', 'server_name', 'server_type', 'server_url', 'stream_start', 'relays')
+ACL={'seba':'[pass]'}
+MAXLEN=512
+RELAYS = [{'host': 'example.com:7225', 'auth': ('admin', 'hackme'), 'mount': '/inba.ogg'},
+        {'host': 'pejatib.ia:8000', 'auth': ('admin', 'hackme'), 'mount': '/stream.ogg'}]
+REC_TMP="/anon/rcp/tmp_rec.ogg"
+REC_TARGETDIR="/anon/www/inba/"
+REC_HOSTPATH="http://inba.tk/inba/"
+SELEKT_ENABLE=False
+NICKSERV_PASS='[pass]'
+STATLOG='/anon/rcp/stats.log'
+MASTER_ICECAST=('inba.tk:8000', ('admin', '[pass]'))
+REC_STREAM='http://localhost:8000/stream.ogg'
+MP3_PIPE='/anon/rcp/pipe1.mp3'
+SELEKT_IDLE_TRACK="/anon/rcp/idle.mp3"
