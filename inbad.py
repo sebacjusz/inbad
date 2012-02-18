@@ -9,17 +9,14 @@ from lxml import etree
 from collections import deque
 import json
 client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
-import inba-cfg as conf
-#filters=['gain', '-3', 'mcompand', '0.005,0.1 -47,-40,-34,-34,-17,-33', r'100', r'0.003,0.05 -47,-40,-34,-34,-17,-33', '400',
-#		'0.000625,0.0125 -47,-40,-34,-34,-15,-33', '1600', '0.0001,0.025 -47,-40,-34,-34,-31,-31,-0,-30', '6400', '0,0.025 -38,-31,-28,-28,-0,-25',
-#		'gain', '15', 'highpass', '22', 'highpass', '22', 'sinc', '-n', '255', '-b', '16', '-17500', 'gain' '9', 'lowpass', '-1', '17801']
+import inba_cfg as conf
 
 class IRCBot(irc.IRCClient):
-    def __init__(self):
-        self.bvars={'s':self, 'svc':self.factory.srv,
+    def __init__(self, factory):
+        self.factory=factory
+        self.bvars={'s':self, 'svc':factory.srv,
                 'Y': lambda f: (lambda x: x(x))(lambda y: f(lambda *args: y(y)(*args))) } #super ycombinator kurwo
         self.bvars.update(globals())
-        #self.bvars = dict( (k, self.bvars[k]) for k in self.bvars if not k == k.upper() )
         del self.bvars['conf']  #nie dla psa hasla
         self.bvars['msg_cb']={}
         self.authed_users=set()
@@ -36,7 +33,7 @@ class IRCBot(irc.IRCClient):
     def c_ile(self, user, channel, args):
         m = self.factory.srv.metadata.get('dj')
         if not m:
-            self.say(channel, 'offline')
+            return self.say(channel, 'offline')
         ll = [('pawlacz.tk:8000', int(m['listeners'])-len(m['relays']))] + m['relays']
         msg = '+ '.join(u'\x033%s\x03:\x034 %d\x03 ' % i for i in ll)
         msg += u', razem słucha \x02%d\x02 anonków.' % sum(i[1] for i in ll)
@@ -216,9 +213,9 @@ class SoxProtocol(protocol.ProcessProtocol):
 class IRCFactory(protocol.ReconnectingClientFactory):
     protocol = IRCBot
     def buildProtocol(self, address):
-        proto = protocol.ReconnectingClientFactory.buildProtocol(self, address)
-        self.connectedProto = proto
-        return proto
+        p = self.protocol(self)
+        self.connectedProto = p
+        return p
 
 class RCPSService(service.Service):
     def __init__(self, ices_args):
@@ -250,14 +247,14 @@ class RCPSService(service.Service):
         print 'estart'
 
     def startSelekt(self):
-        global conf.SELEKT_ENABLE
+        #global conf.SELEKT_ENABLE
         conf.SELEKT_ENABLE=True;
         pp=IcesProtocol()
         self.ices=reactor.spawnProcess(pp, '/usr/bin/ices2', self.ices_args, env=None)
         print 'spawned ices'
 
     def stopSelekt(self):
-        global conf.SELEKT_ENABLE
+        #global conf.SELEKT_ENABLE
         self.ices.signalProcess('TERM')
         self.current_sox.proto.die()
         conf.SELEKT_ENABLE=False;
@@ -341,7 +338,7 @@ class RCPSService(service.Service):
                             j.cancel()
                     filt = (lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'file', 'server_description', 'server_name')))\
                             if i != 'selekt' else lambda d: {'file':d['file']}
-                    elif filt(self.metadata[i]) != filt(self.lastmeta[i]):
+                    if filt(self.metadata[i]) != filt(self.lastmeta[i]):
                         self._metadataChanged(i)
             if dj:
                 self.metadata['dj']['relays']=[]
