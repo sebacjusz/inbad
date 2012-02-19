@@ -6,4 +6,5 @@ inba_cfg.py
 jng/
 idle.mp3
 *.pid
-*.log
+*.log*
+pipe1.mp3
