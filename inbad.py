@@ -336,8 +336,7 @@ class RCPSService(service.Service):
                     if not self.metadata[i]:
                         for j in self.lp_defers[i]:
                             j.cancel()
-                    filt = (lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'file', 'server_description', 'server_name')))\
-                            if i != 'selekt' else lambda d: {'file':d['file']}
+                    filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'file', 'server_description', 'server_name', 'file'))
                     if filt(self.metadata[i]) != filt(self.lastmeta[i]):
                         self._metadataChanged(i)
             if dj:
@@ -354,7 +353,7 @@ class RCPSService(service.Service):
                     rel.addCallback(_append_count, rel_i=addr.copy())
                     dl.append(rel)
                 def _eb(e):
-                    print "____________EEEE:" + repr(e)
+                    e.printBriefTraceback()
                 return defer.DeferredList(dl).addBoth(f2).addErrback(_eb)
             else:
                 return f2()
