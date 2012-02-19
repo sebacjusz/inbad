@@ -244,17 +244,14 @@ class RCPSService(service.Service):
         print >>self.statlog, '\n'
         task.LoopingCall(self.logStat).start(30)
         service.Service.startService(self)
-        print 'estart'
 
     def startSelekt(self):
-        #global conf.SELEKT_ENABLE
         conf.SELEKT_ENABLE=True;
         pp=IcesProtocol()
         self.ices=reactor.spawnProcess(pp, '/usr/bin/ices2', self.ices_args, env=None)
         print 'spawned ices'
 
     def stopSelekt(self):
-        #global conf.SELEKT_ENABLE
         self.ices.signalProcess('TERM')
         self.current_sox.proto.die()
         conf.SELEKT_ENABLE=False;
@@ -403,7 +400,6 @@ class RCPSService(service.Service):
         ss = sum(i[1] for i in ll)
         self.listener_peak = ss if ss > self.listener_peak else self.listener_peak
         print >>self.statlog, int(time.time()), ' '.join( '|'.join(map(str,i)) for i in ll )
-        print int(time.time()), ' '.join( '|'.join(map(str,i)) for i in ll )
         self.statlog.flush()
     
     def logMetadata(self, no_check=0):
