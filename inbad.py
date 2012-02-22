@@ -407,14 +407,15 @@ class RCPSService(service.Service):
         mm=self.metadata.get('dj')
         if self.metalog.closed or not lm or not mm:
             return
-        g_nd = lambda x: dict( ( (k, x[k]) for k in x.iterkeys() if k == 'server_name' or k == 'server_description') )
-        g_at = lambda x: dict( (  (i, x.get(i, '')) for i in ('artist', 'title') ) )
-        if g_nd(mm) != g_nd(lm) or no_check:
-            print >>self.metalog, time.strftime("%H:%M\t"), mm['server_name'] + (' (%s)' % mm['server_description']) if mm['server_description'] else ''
+        g_nd = lambda x: dict( (i, x.get(i, '')) for i in ('server_name', 'server_description') )
+        g_at = lambda x: dict( (i, x.get(i, '')) for i in ('artist', 'title') )
+        mm_t=g_nd(mm)
+        if mm_t != g_nd(lm) or no_check:
+            print >>self.metalog, time.strftime("%H:%M\t"), mm_t['server_name'] + (' (%s)' % mm_t['server_description']) if mm_t['server_description'] else ''
         mm_t=g_at(mm)
         if mm_t != g_at(lm) or no_check:
-            td = time.strftime("%H:%M:%S\t", time.localtime(time.time() - self.rec_start))
-            print >>self.metalog, td, "%s - %s\n" % (mm_t['artist'], mm_t['title'])
+            td = str(datetime.timedelta(seconds=int(time.time() - rs))) + '\t'
+            print >>self.metalog, td, "%s - %s" % (mm_t['artist'], mm_t['title'])
         self.metalog.flush()
 
 
