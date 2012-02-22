@@ -7,7 +7,7 @@ from twisted.words.protocols import irc
 import tempfile, os, time, random,signal,sys, re
 from lxml import etree
 from collections import deque
-import json
+import json, datetime
 client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
 import inba_cfg as conf
 
