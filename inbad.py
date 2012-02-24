@@ -414,7 +414,7 @@ class RCPSService(service.Service):
             print >>self.metalog, time.strftime("%H:%M\t"), mm_t['server_name'] + (' (%s)' % mm_t['server_description']) if mm_t['server_description'] else ''
         mm_t=g_at(mm)
         if mm_t != g_at(lm) or no_check:
-            td = str(datetime.timedelta(seconds=int(time.time() - rs))) + '\t'
+            td = str(datetime.timedelta(seconds=int(time.time() - self.rec_start))) + '\t'
             print >>self.metalog, td, "%s - %s" % (mm_t['artist'], mm_t['title'])
         self.metalog.flush()
 
