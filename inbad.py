@@ -359,9 +359,6 @@ class RCPSService(service.Service):
     def streamStarted(self):
         print 'sstarted'
         self.listener_peak=0
-        def anuncjo(_):
-            self.ircf.connectedProto.c_np('', self.ircf.channel, '')
-        reactor.callLater(1, lambda : self.updateMetadata().addCallback(anuncjo))
         self.ircf.connectedProto.notice(self.ircf.channel, "DJ połączon'd, nakurwiam nagranie und stream mp3")
         if os.path.exists(conf.REC_TMP):
             os.unlink(conf.REC_TMP)
@@ -379,6 +376,10 @@ class RCPSService(service.Service):
         self.ffmpeg = reactor.spawnProcess(protocol.ProcessProtocol(), '/usr/bin/ffmpeg', ('ffmpeg', '-i',conf.REC_STREAM,
                                         '-f', 'mp3', '-b', '64k', '-ac', '2', '-y', conf.MP3_PIPE))
         self.ezstream = reactor.spawnProcess(protocol.ProcessProtocol(), '/usr/bin/ezstream', ('ezstream', '-c', '/anon/rcp/ezstream_reencode_mp3.xml'))
+        def anuncjo(_):
+            self.ircf.connectedProto.c_np('', self.ircf.channel, '')
+            self.logMetadata(True)
+        reactor.callLater(1, lambda : self.updateMetadata().addCallback(anuncjo))
     def streamEnded(self):
         self.ircf.connectedProto.notice(self.ircf.channel, '\x034 koniec inby, wasze kwejk.fm tam-->')
         self.ircf.connectedProto.say(self.ircf.channel,
