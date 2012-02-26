@@ -8,8 +8,11 @@ import tempfile, os, time, random,signal,sys, re
 from lxml import etree
 from collections import deque
 import json, datetime
+import redis
 client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
 import inba_cfg as conf
+
+redis_conn = redis.Redis()
 
 class IRCBot(irc.IRCClient):
     def __init__(self, factory):
@@ -166,24 +169,12 @@ def _add_out_callbacks(d, r):
     return d.addCallback(lambda _: r.finish())
 
 
-class WebLongPoll(resource.Resource):
-    def __init__(self, stream, service):
-        self.service = service
-        self.stream=stream
-    def render_GET(self, request):
-        d = self.service.lp_getMetadata(self.stream)
-        d.addCallback(lambda x: dict((k,x[k]) for k in x if k in conf.safe_params ))
-        _add_out_callbacks(d, request)
-        return server.NOT_DONE_YET
-
 class WebJSONInfo(resource.Resource):
     def __init__(self, service):
         resource.Resource.__init__(self)
         self.service=service
         self.putChild("", self)
         self.putChild("m", self)
-        self.putChild("longpoll_selekt", WebLongPoll('selekt', service))
-        self.putChild("longpoll_dj", WebLongPoll('dj', service))
 
     def render_GET(self, request):
         d = defer.Deferred()
@@ -227,7 +218,6 @@ class RCPSService(service.Service):
         self.metadata={}
         self.listener_peak=0
         self.lastmeta={'selekt':{}, 'dj': {} }
-        self.lp_defers={'selekt':[], 'dj':[]}
         self.metalog=open('/dev/null', 'a')
         self.metaupdater=None
         print 'sinit'
@@ -288,13 +278,6 @@ class RCPSService(service.Service):
         else:
             self.queue.appendleft(it)
 
-    def lp_getMetadata(self, stream):
-        if stream not in ('selekt', 'dj'):
-            raise Exception("invalid stream name")
-        d = defer.Deferred()
-        self.lp_defers[stream].append(d)
-        return d
-
     def getXRResource(self):
         return radioctl(self)
     def getWebResource(self):
@@ -317,22 +300,23 @@ class RCPSService(service.Service):
         return d.addCallback(parse_data)
 
     def _metadataChanged(self, n):
-        print '_____meta changed (%s)________, defers:' % n, self.lp_defers[n]
-        for j in self.lp_defers[n]:
-            j.callback(self.metadata[n])
+        print '_____meta changed (%s)________:' % n
+        def _rpush(c, d):
+            data = {'channels': c, 'data': d}
+            redis_conn.publish('juggernaut', json.dumps(data)) #this should be async
         if n=='dj':
             self.logMetadata()
         self.lastmeta[n] = self.metadata[n]
-        self.lp_defers[n]=[]
+        _rpush([n], self.metadata[n])
+        html="<b>%s</b> właśnie nakurwia: " % self.metadata['server_name'] if self.metadata['server_name'] else ''
+        html+="%s - <i>%s</i>" % (self.metadata.get('artist'), self.metadata.get('title'))
+        _rpush([n+'_html'], html.encode('utf-8')
     def updateMetadata(self):
         def f(l):
             dj, sel = (l.get('/stream.ogg', {}), l.get('/selekt.ogg', {}))
             self.metadata = {'dj':dj, 'selekt': sel}
             def f2(trash=None):
                 for i in self.metadata:
-                    if not self.metadata[i]:
-                        for j in self.lp_defers[i]:
-                            j.cancel()
                     filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'file', 'server_description', 'server_name', 'file'))
                     if filt(self.metadata[i]) != filt(self.lastmeta[i]):
                         self._metadataChanged(i)
