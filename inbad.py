@@ -37,7 +37,7 @@ class IRCBot(irc.IRCClient):
         m = self.factory.srv.metadata.get('dj')
         if not m:
             return self.say(channel, 'offline')
-        ll = [('pawlacz.tk:8000', int(m['listeners'])-len(m['relays']))] + m['relays']
+        ll = [('pawlacz.tk:8000', m['listeners']-len(m['relays']))] + m['relays']
         msg = '+ '.join(u'\x033%s\x03:\x034 %d\x03 ' % i for i in ll)
         msg += u', razem słucha \x02%d\x02 anonków.' % sum(i[1] for i in ll)
         return self.say(channel, msg.encode('utf-8'))
@@ -187,8 +187,7 @@ class WebJSONInfo(resource.Resource):
 class IcesProtocol(protocol.ProcessProtocol):
     def processEnded(self, reason):
         if conf.SELEKT_ENABLE:
-            print 'ices2 died, exiting...', reason
-            return reactor.stop()
+            print 'ices2 died, ERR...', reason
 
 class SoxProtocol(protocol.ProcessProtocol):
     def __init__(self, pipe):
@@ -295,8 +294,15 @@ class RCPSService(service.Service):
         authHeader = "Basic " + basicAuth.strip()
         d = client.getPage('http://' + server + '/admin/stats', headers={"Authorization": authHeader})
         d.addCallback(lambda x: etree.fromstring(x))
+        def convert(d):
+            for k in d:
+                if k in ('artist', 'title', , 'server_description', 'server_name', 'file'):
+                    d[k] = d[k].decode('utf-8')
+                elif k in ('listeners', 'listener_peak'):
+                    d[k] = int(d[k])
+            return d
         def parse_data(tree):
-            return dict([(i.attrib['mount'], dict([(j.tag, j.text) for j in i])) for i in tree.iter('source')])
+            return dict([(i.attrib['mount'], convert(dict((j.tag, j.text) for j in i)) for i in tree.iter('source')]))
         return d.addCallback(parse_data)
 
     def _metadataChanged(self, n):
@@ -308,16 +314,18 @@ class RCPSService(service.Service):
             self.logMetadata()
         self.lastmeta[n] = self.metadata[n]
         _rpush([n], self.metadata[n])
-        html="<b>%s</b> właśnie nakurwia: " % self.metadata['server_name'] if self.metadata['server_name'] else ''
+        html="<b>%s</b> właśnie nakurwia: " % self.metadata['server_name'] if self.metadata.get('server_name') else ''
         html+="%s - <i>%s</i>" % (self.metadata.get('artist'), self.metadata.get('title'))
-        _rpush([n+'_html'], html.encode('utf-8')
+        _rpush([n+'_html'], html.encode('utf-8'))
     def updateMetadata(self):
         def f(l):
             dj, sel = (l.get('/stream.ogg', {}), l.get('/selekt.ogg', {}))
             self.metadata = {'dj':dj, 'selekt': sel}
+            if sel and conf.SELEKT_ENABLE:
+                self.metadata['selekt']['file'] = self.nowplaying
             def f2(trash=None):
                 for i in self.metadata:
-                    filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'file', 'server_description', 'server_name', 'file'))
+                    filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', , 'server_description', 'server_name', 'file'))
                     if filt(self.metadata[i]) != filt(self.lastmeta[i]):
                         self._metadataChanged(i)
             if dj:
@@ -325,12 +333,12 @@ class RCPSService(service.Service):
                 dl=[]
                 mp3 = l.get('/stream.mp3')
                 if mp3 and mp3.has_key('listeners'):    #biedacki hack
-                    self.metadata['dj']['relays'].append( ('pawlacz(mp3)', int(mp3['listeners'])) )
+                    self.metadata['dj']['relays'].append( ('pawlacz(mp3)', mp3['listeners']) )
                 for addr in conf.RELAYS:
                     rel = self.getStreamMetadata(addr['host'], addr['auth'])
                     def _append_count(m, rel_i):
                         if rel_i['mount'] in m:
-                            self.metadata['dj']['relays'].append( (rel_i['host'], int(m[rel_i['mount']]['listeners'])) )
+                            self.metadata['dj']['relays'].append( (rel_i['host'], m[rel_i['mount']]['listeners']) )
                     rel.addCallback(_append_count, rel_i=addr.copy())
                     dl.append(rel)
                 def _eb(e):
@@ -381,7 +389,7 @@ class RCPSService(service.Service):
         m=self.metadata.get('dj')
         if not m or not m.has_key('listeners') or not m.has_key('relays'):
             return
-        ll = [('pawlacz.tk:8000', int(m['listeners'])-len(m['relays']))] + m['relays']
+        ll = [('pawlacz.tk:8000', m['listeners']-len(m['relays']))] + m['relays']
         ss = sum(i[1] for i in ll)
         self.listener_peak = ss if ss > self.listener_peak else self.listener_peak
         print >>self.statlog, int(time.time()), ' '.join( '|'.join(map(str,i)) for i in ll )
@@ -396,11 +404,12 @@ class RCPSService(service.Service):
         g_at = lambda x: dict( (i, x.get(i, '')) for i in ('artist', 'title') )
         mm_t=g_nd(mm)
         if mm_t != g_nd(lm) or no_check:
-            print >>self.metalog, time.strftime("%H:%M\t"), mm_t['server_name'] + (' (%s)' % mm_t['server_description']) if mm_t['server_description'] else ''
+            print >>self.metalog, time.strftime("%H:%M\t"), (mm_t['server_name'] + (' (%s)' % mm_t['server_description']) if mm_t['server_description'] else '').encode('utf-8')
         mm_t=g_at(mm)
         if mm_t != g_at(lm) or no_check:
             td = str(datetime.timedelta(seconds=int(time.time() - self.rec_start))) + '\t'
-            print >>self.metalog, td, "%s - %s" % (mm_t['artist'], mm_t['title'])
+            _tmp = u"%s - %s" % (mm_t['artist'], mm_t['title'])
+            print >>self.metalog, td, _tmp.encode('utf-8')
         self.metalog.flush()
 
 
