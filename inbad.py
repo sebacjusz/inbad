@@ -17,7 +17,7 @@ redis_conn = redis.Redis()
 class IRCBot(irc.IRCClient):
     def __init__(self, factory):
         self.factory=factory
-        self.bvars={'s':self, 'svc':factory.srv,
+        self.bvars={'ii':self, 'svc':factory.srv,
                 'Y': lambda f: (lambda x: x(x))(lambda y: f(lambda *args: y(y)(*args))) } #super ycombinator kurwo
         self.bvars.update(globals())
         del self.bvars['conf']  #nie dla psa hasla
@@ -296,13 +296,21 @@ class RCPSService(service.Service):
         d.addCallback(lambda x: etree.fromstring(x))
         def convert(d):
             for k in d:
-                if k in ('artist', 'title', , 'server_description', 'server_name', 'file'):
-                    d[k] = d[k].decode('utf-8')
+                if not d.get(k):
+                    continue
+                elif k in ('artist', 'title', 'server_description', 'server_name', 'file'):
+                    if type(d[k]) == unicode:
+                        continue
+                    try:
+                        d[k] = d[k].decode('utf-8')
+                    except UnicodeEncodeError:
+                        d[k] = d[k].decode('cp1250')
                 elif k in ('listeners', 'listener_peak'):
                     d[k] = int(d[k])
             return d
         def parse_data(tree):
-            return dict([(i.attrib['mount'], convert(dict((j.tag, j.text) for j in i)) for i in tree.iter('source')]))
+            return dict([(i.attrib['mount'],
+                convert(dict([(j.tag, j.text) for j in i]))) for i in tree.iter('source')])
         return d.addCallback(parse_data)
 
     def _metadataChanged(self, n):
@@ -325,7 +333,7 @@ class RCPSService(service.Service):
                 self.metadata['selekt']['file'] = self.nowplaying
             def f2(trash=None):
                 for i in self.metadata:
-                    filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', , 'server_description', 'server_name', 'file'))
+                    filt = lambda d: dict( (k, d[k]) for k in d if k in ('artist', 'title', 'server_description', 'server_name', 'file'))
                     if filt(self.metadata[i]) != filt(self.lastmeta[i]):
                         self._metadataChanged(i)
             if dj:
