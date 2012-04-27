@@ -9,7 +9,7 @@ from lxml import etree
 from collections import deque
 import json, datetime
 import redis
-client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
+#client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
 import inba_cfg as conf
 
 redis_conn = redis.Redis()
@@ -207,6 +207,7 @@ class IRCFactory(protocol.ReconnectingClientFactory):
         self.connectedProto = p
         return p
 
+
 class RCPSService(service.Service):
     def __init__(self, ices_args):
         self.current_sox=None
@@ -289,30 +290,6 @@ class RCPSService(service.Service):
         self.ircf = f
         return f
 
-    def getStreamMetadata(self, server, auth):
-        basicAuth = ('%s:%s' % auth).encode('base64')
-        authHeader = "Basic " + basicAuth.strip()
-        d = client.getPage('http://' + server + '/admin/stats', headers={"Authorization": authHeader})
-        d.addCallback(lambda x: etree.fromstring(x))
-        def convert(d):
-            for k in d:
-                if not d.get(k):
-                    continue
-                elif k in ('artist', 'title', 'server_description', 'server_name', 'file'):
-                    if type(d[k]) == unicode:
-                        continue
-                    try:
-                        d[k] = d[k].decode('utf-8')
-                    except UnicodeEncodeError:
-                        d[k] = d[k].decode('cp1250')
-                elif k in ('listeners', 'listener_peak'):
-                    d[k] = int(d[k])
-            return d
-        def parse_data(tree):
-            return dict([(i.attrib['mount'],
-                convert(dict([(j.tag, j.text) for j in i]))) for i in tree.iter('source')])
-        return d.addCallback(parse_data)
-
     def _metadataChanged(self, n):
         print '_____meta changed (%s)________:' % n
         def _rpush(c, d):
@@ -325,6 +302,7 @@ class RCPSService(service.Service):
         html="<b>%s</b> właśnie nakurwia: " % self.metadata['server_name'] if self.metadata.get('server_name') else ''
         html+="%s - <i>%s</i>" % (self.metadata.get('artist'), self.metadata.get('title'))
         _rpush([n+'_html'], html.encode('utf-8'))
+
     def updateMetadata(self):
         def f(l):
             dj, sel = (l.get('/stream.ogg', {}), l.get('/selekt.ogg', {}))

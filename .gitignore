@@ -9,3 +9,4 @@ idle.mp3
 *.log*
 pipe1.mp3
 tmp_rec.ogg
+.*.swp
