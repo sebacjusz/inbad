@@ -7,7 +7,7 @@ client.HTTPClientFactory.noisy = False      # get rid of that 'starting factory'
 from twisted.application import service
 from twisted.internet import reactor, task
 import json, time
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 ServerAuth = namedtuple('ServerAuth', 'user passwd')
 Mountpoint = namedtuple('Mountpoint', 'master relays')
@@ -25,6 +25,8 @@ def getStats(server, auth):
     d.addCallback(lambda x: etree.fromstring(x))
     def convert(d):
         for k in d:
+            if not d[k]:
+                del d[k]
             if k in ('artist', 'title', 'server_description', 'server_name', 'file'):
                 if type(d[k]) == unicode:
                     continue
@@ -56,7 +58,7 @@ class IcecastPoller(service.Service, dict):
        Servers will be polled every <interval> seconds.
        Relays which haven't been up for more than <timeout> seconds won't be counted.
        TODO: Use persistent connections"""
-    def __init__(self, mountpoints, servers, interval=2, master_in_relays=True, timeout=10):
+    def __init__(self, mountpoints, servers, interval=4, master_in_relays=True, timeout=10):
         self.loglevel = 1
         self._interval = interval
         self.timeout = timeout
