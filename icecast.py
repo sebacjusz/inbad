@@ -59,7 +59,7 @@ class IcecastPoller(service.Service, dict):
        Relays which haven't been up for more than <timeout> seconds won't be counted.
        TODO: Use persistent connections"""
     def __init__(self, mountpoints, servers, interval=4, master_in_relays=True, timeout=10):
-        self.loglevel = 1
+        self.loglevel = 2
         self._interval = interval
         self.timeout = timeout
         self.master_in_relays = master_in_relays
@@ -82,7 +82,7 @@ class IcecastPoller(service.Service, dict):
     def updateServers(self):
         for s in self.servers:
             def _set(v, srv):
-                self.log('updated %s' % srv, 1)
+                self.log('updated %s' % srv, 0)
                 self.server_data[srv] = v
                 self.server_data[srv]['_last_update'] = int(time.time())
             d = getStats(s, self.servers[s])
@@ -91,7 +91,6 @@ class IcecastPoller(service.Service, dict):
 
     def updateMounts(self):
         for m in self.mounts:
-            self.log("mupd " + repr(m))
             m_d = self.mounts[m]
             if m_d.master not in self.server_data or m not in self.server_data[m_d.master]:
                 new = None  # mountpoint is offline, so skip it
@@ -115,7 +114,9 @@ class IcecastPoller(service.Service, dict):
                 new['relays'][self.mounts[m].master] = new['listeners'] - len(new['relays'])
             filt = lambda d: {k: d[k] for k in d if k in watch_keys}
             if filt(self.get(m, dict())) != filt(new):
+                self[m] = new
                 self.parent.event_pub('metadata_changed')
-                self.log('meta for %s changed: %s' %(m, filt(new)), 2)
-            self[m] = new
+                self.log('meta for %s changed: %s' %(m, filt(new)), 1)
+            else:   # yeah, that is pretty dumb.
+                self[m] = new
             self.log('relays for %s:' % m + repr(new['relays']), 1)
