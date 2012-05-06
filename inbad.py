@@ -36,7 +36,7 @@ class IRCBot(irc.IRCClient):
     def c_ile(self, user, channel, args):
         m = self.factory.srv.metadata.get('dj')
         if not m:
-            return self.say(channel, 'offline')
+            return self.say(channel, 'nie ma dja, słuchacz szperdo 24/7')
         ll = [('pawlacz.tk:8000', m['listeners']-len(m['relays']))] + m['relays']
         msg = '+ '.join(u'\x033%s\x03:\x034 %d\x03 ' % i for i in ll)
         msg += u', razem słucha \x02%d\x02 anonków.' % sum(i[1] for i in ll)
@@ -362,7 +362,7 @@ class RCPSService(service.Service):
         self.ircf.connectedProto.notice(self.ircf.channel, "DJ połączon'd, nakurwiam nagranie und stream mp3")
         if os.path.exists(conf.REC_TMP):
             os.unlink(conf.REC_TMP)
-        client.downloadPage(conf.REC_STREAM, conf.REC_TMP)
+        self.recorder = client.downloadPage(conf.REC_STREAM, conf.REC_TMP)
         self.rec_start = time.time()
         self.recpath = time.strftime("%Y/%m.%d/", time.localtime(self.rec_start))
         tpath = conf.REC_TARGETDIR +self.recpath
@@ -392,6 +392,7 @@ class RCPSService(service.Service):
         reactor.callLater(60, (lambda f: f.close() if not f.closed else None), self.metalog)
         self.ezstream.signalProcess('KILL')
         self.ffmpeg.signalProcess('KILL')
+        self.recorder.noPage("end")
 
     def logStat(self):
         m=self.metadata.get('dj')
