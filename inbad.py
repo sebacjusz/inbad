@@ -8,11 +8,8 @@ import tempfile, os, time, random,signal,sys, re
 from lxml import etree
 from collections import deque
 import json, datetime
-import redis
 client.HTTPClientFactory.noisy = False      #get rid of that 'starting factory' log flood
 import inba_cfg as conf
-
-redis_conn = redis.Redis()
 
 class IRCBot(irc.IRCClient):
     def __init__(self, factory):
@@ -315,16 +312,9 @@ class RCPSService(service.Service):
 
     def _metadataChanged(self, n):
         print '_____meta changed (%s)________:' % n
-        def _rpush(c, d):
-            data = {'channels': c, 'data': d}
-            redis_conn.publish('juggernaut', json.dumps(data)) #this should be async
         if n=='dj':
             self.logMetadata()
         self.lastmeta[n] = self.metadata[n]
-        _rpush([n], self.metadata[n])
-        html="<b>%s</b> właśnie nakurwia: " % self.metadata['server_name'] if self.metadata.get('server_name') else ''
-        html+="%s - <i>%s</i>" % (self.metadata.get('artist'), self.metadata.get('title'))
-        _rpush([n+'_html'], html.encode('utf-8'))
     def updateMetadata(self):
         def f(l):
             dj, sel = (l.get('/stream.ogg', {}), l.get('/selekt.ogg', {}))
