@@ -70,6 +70,7 @@ class RCPSService(service.MultiService):
     def getLSFactory(self):
         f = protocol.ReconnectingClientFactory()
         f.protocol = LiquidsoapProtocol
+        self.liq_f = f
         return f
 
     def _metadataChanged(self):
