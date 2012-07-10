@@ -382,7 +382,6 @@ class RCPSService(service.Service):
         reactor.callLater(60, (lambda f: f.close() if not f.closed else None), self.metalog)
         self.ezstream.signalProcess('KILL')
         self.ffmpeg.signalProcess('KILL')
-        self.recorder.noPage("end")
 
     def logStat(self):
         m=self.metadata.get('dj')
