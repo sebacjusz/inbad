@@ -5,6 +5,8 @@
 szperdo_on = ref false
 auto_nrj = ref false
 
+set("server.timeout",-1.)
+
 trans = fun(a, b) -> add([fade.initial(b), fade.final(a)])
 server.register("szperdo.start", fun (_) -> begin szperdo_on := true "ok" end)
 server.register("szperdo.stop", fun(_) -> begin szperdo_on := false "ok" end)
@@ -15,7 +17,7 @@ server.register("jcall", fun(arg) -> json_of(inbad.call(arg)))
 szperdo_i = input.http(id="szperdo", "http://localhost:8000/szperdo.ogg")
 szperdo_sw = switch(track_sensitive=false, [({!szperdo_on}, szperdo_i)])
 
-jng_pls = playlist.safe("jng.pls")
+jng_pls = playlist.safe("jng.pls", mime_type="audio/mpegurl", mode="random")
 idle_r = random(weights=[1, 10], [jng_pls, standby_loop])
 
 live_i = input.harbor("dj_live_in", password=override_pass, port=8001, max=15.,
