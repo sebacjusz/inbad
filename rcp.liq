@@ -30,7 +30,9 @@ switched = fallback(track_sensitive=false, transitions=[trans, trans, trans],
 p_sos=switched
 sos = switch(track_sensitive=false, [ ({!auto_nrj}, nrj(p_sos)),
     ({true},p_sos)])
+
+master_output = server.rms(id="master_output", sos)
 std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.4),
-    mount = "stream.ogg", sos)
+    mount = "stream.ogg", master_output)
 std_icecast(%mp3.abr(min_bitrate=64, bitrate=96, max_bitrate=128),
-    mount = "stream.mp3", sos)
+    mount = "stream.mp3", master_output)

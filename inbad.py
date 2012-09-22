@@ -41,6 +41,15 @@ class RCPSService(service.MultiService):
         self.statlog = open(conf.STATLOG, 'a')
         print >>self.statlog, '\n'
         #task.LoopingCall(self.logStat).start(30)
+        def _rms():
+            def _prrms(x):
+                print 'RMS:', x
+            try:
+                d = self.lsf.instance.call('master_output.rms')
+                d.addCallback(_prrms)
+            except AttributeError:
+                print 'RMS: lsclient not found'
+        task.LoopingCall(_rms).start(3)
         service.MultiService.startService(self)
 
     def subscribe(self, event, f):
@@ -68,8 +77,9 @@ class RCPSService(service.MultiService):
         return f
 
     def getLSFactory(self):
-        f = protocol.ReconnectingClientFactory()
+        f = LiquidsoapFactory()
         f.protocol = LiquidsoapProtocol
+        self.lsf = f
         return f
 
     def _metadataChanged(self):
@@ -147,6 +157,6 @@ s = RCPSService()
 serviceCollection = service.IServiceCollection(application)
 s.setServiceParent(serviceCollection)
 internet.TCPServer(8005, server.Site(s.getJSONResource()), interface='127.0.0.1').setServiceParent(serviceCollection)
-internet.TCPClient('pawlacz.6irc.net', 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
+#internet.TCPClient('pawlacz.6irc.net', 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
 internet.TCPClient('localhost', 1234, s.getLSFactory()).setServiceParent(serviceCollection)
 #internet.TCPServer(8010, server.Site(s.getWebResource())).setServiceParent(serviceCollection)
