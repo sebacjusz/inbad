@@ -4,6 +4,7 @@
 %include "config.liq"
 szperdo_on = ref false
 auto_nrj = ref false
+rec_source = ref source
 
 set("server.timeout",-1.)
 
@@ -31,8 +32,21 @@ p_sos=switched
 sos = switch(track_sensitive=false, [ ({!auto_nrj}, nrj(p_sos)),
     ({true},p_sos)])
 
-master_output = server.rms(id="master_output", sos)
+final_output = sos
+
 std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.4),
-    mount = "stream.ogg", master_output)
+    mount = "vorbis-hq.ogg", final_output)
+std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.2),
+    mount = "vorbis-lq.ogg", final_output)
 std_icecast(%mp3.abr(min_bitrate=64, bitrate=96, max_bitrate=128),
-    mount = "stream.mp3", master_output)
+    mount = "mp3-abr-lq.mp3", final_output)
+std_icecast(%mp3.abr(min_bitrate=128, bitrate=192, max_bitrate=256),
+    mount = "mp3-abr-hq.mp3", final_output)
+
+def start_rec() = 
+    source.shutdown(rec_source)
+    rec_source := output.file(%vorbis(samplerate=44100, channels=2,
+        quality=0.4), on_close=inbad.rec_stopped,
+        rec_path+"%Y/%m-%d/%H:%M:%S(live).ogg")
+    log("start_rec")
+end

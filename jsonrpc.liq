@@ -16,3 +16,5 @@ inbad.call = jsonrpc.call("http://localhost:8005/")
 
 inbad.dj_connected = fun() -> inbad.call("server_sourceConnected")
 inbad.dj_disconnected = fun() -> inbad.call("server_sourceDisconnected")
+inbad.rec_stopped = fun(file) -> inbad.call("server_recStopped",
+    args=[("file",file)])

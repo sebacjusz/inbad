@@ -90,8 +90,7 @@ class IcecastPoller(service.Service, dict):
             d.addErrback(_stderrback)
 
     def updateMounts(self):
-        for m in self.mounts:
-            m_d = self.mounts[m]
+        for m,m_d in self.mounts.iteritems():
             if m_d.master not in self.server_data or m not in self.server_data[m_d.master]:
                 new = None  # mountpoint is offline, so skip it
                 continue
