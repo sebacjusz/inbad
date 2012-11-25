@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from twisted.internet import reactor, protocol
+from twisted.internet import reactor, protocol, defer
 from twisted.words.protocols import irc
 import sys
 import re
@@ -54,6 +54,14 @@ class IRCBot(irc.IRCClient):
     def c_eval(self, user, channel, args):
         try:
             ev = eval(args, self.bvars)
+            if isinstance(ev,defer.Deferred):
+                def _ff(*l):
+                    if len(l)>2:
+                        s = unicode(l)
+                    else:
+                        s=unicode(l[0])
+                    self.say(channel, s.encode('utf-8'), conf.MAXLEN)
+                return ev.addCallback(_ff)
             return self.say(channel, unicode(ev).encode('utf-8'), conf.MAXLEN)
         except:
             return self.say(channel, "\x02\x034%s" % repr(sys.exc_info()[1]))
