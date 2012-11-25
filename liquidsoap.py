@@ -16,7 +16,8 @@ class LiquidsoapProtocol(LineReceiver):
         def _ka():
             if not self.current_cmd:
                 self.call('uptime')
-        self.keepalive = task.LoopingCall(_ka).start(10)
+        self.keepalive = task.LoopingCall(_ka)
+        self.keepalive.start(10)
 
     def connectionLost(self, reason):
         if self.keepalive:
