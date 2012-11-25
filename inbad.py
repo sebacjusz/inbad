@@ -20,10 +20,11 @@ class radioctl(jsonrpc.JSONRPC):
         self.service = service
         self.allowNone = True
 
-    def jsonrpc_server_sourceDisconnected(self):
-        self.service.streamEnded()
-    def jsonrpc_server_sourceConnected(self):
-        self.service.streamStarted()
+    def _getFunction(self, path):
+        def _fun(*d):
+            print repr(d)
+            self.service.event_pub(path, d)
+        return _fun
 
 
 class RCPSService(service.MultiService):
@@ -33,7 +34,7 @@ class RCPSService(service.MultiService):
         self.poller = icecast.IcecastPoller(conf.ICE_MOUNT, conf.ICE_SERVERS)
         self.poller.setServiceParent(self)
         self.event_callbacks = defaultdict(list)
-        self.subscribe('metadata_changed', self._metadataChanged)
+        self.subscribe('new_track', self._metadataChanged)
         self.meta = None
         self.meta_fmt = MetaFormatter(self)
 
@@ -45,7 +46,7 @@ class RCPSService(service.MultiService):
             def _prrms(x):
                 print 'RMS:', x
             try:
-                d = self.lsf.instance.call('master_output.rms')
+                d = self.lsf.instance.call('final_output.rms')
                 d.addCallback(_prrms)
             except AttributeError:
                 print 'RMS: lsclient not found'
@@ -82,8 +83,9 @@ class RCPSService(service.MultiService):
         self.lsf = f
         return f
 
-    def _metadataChanged(self):
-        self.meta = self.poller.get(conf.ICE_MOUNT.keys()[0])
+    def _metadataChanged(self, d):
+        self.meta = d
+        #self.meta = self.poller.get(conf.ICE_MOUNT.keys()[0])
         return
         if self.meta:
             self.logMetadata()
@@ -152,6 +154,7 @@ class RCPSService(service.MultiService):
         self.metalog.flush()
 
 
+print 'b_load'
 application=service.Application('inbad')
 s = RCPSService()
 serviceCollection = service.IServiceCollection(application)
