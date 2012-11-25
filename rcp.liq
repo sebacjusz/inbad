@@ -4,7 +4,7 @@
 %include "config.liq"
 szperdo_on = ref false
 auto_nrj = ref false
-rec_source = ref source
+rec_source = ref output.dummy(blank())
 
 set("server.timeout",-1.)
 
@@ -14,6 +14,14 @@ server.register("szperdo.stop", fun(_) -> begin szperdo_on := false "ok" end)
 server.register("nrj.off", fun(_) -> begin auto_nrj := false "ok" end)
 server.register("nrj.on", fun(_) -> begin auto_nrj := true "ok" end)
 server.register("jcall", fun(arg) -> json_of(inbad.call(arg)))
+
+def new_metadata(d)
+    def ret1()
+        ignore(inbad.call("new_track", argd=d))
+        (-1.0)
+    end
+    ignore(add_timeout(fast=false, 0.01, ret1))
+end
 
 szperdo_i = input.http(id="szperdo", "http://localhost:8000/szperdo.ogg")
 szperdo_sw = switch(track_sensitive=false, [({!szperdo_on}, szperdo_i)])
@@ -32,7 +40,7 @@ p_sos=switched
 sos = switch(track_sensitive=false, [ ({!auto_nrj}, nrj(p_sos)),
     ({true},p_sos)])
 
-final_output = sos
+final_output = on_track(new_metadata, server.rms(id="final_output",sos))
 
 std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.4),
     mount = "vorbis-hq.ogg", final_output)
@@ -43,10 +51,10 @@ std_icecast(%mp3.abr(min_bitrate=64, bitrate=96, max_bitrate=128),
 std_icecast(%mp3.abr(min_bitrate=128, bitrate=192, max_bitrate=256),
     mount = "mp3-abr-hq.mp3", final_output)
 
-def start_rec() = 
-    source.shutdown(rec_source)
-    rec_source := output.file(%vorbis(samplerate=44100, channels=2,
-        quality=0.4), on_close=inbad.rec_stopped,
-        rec_path+"%Y/%m-%d/%H:%M:%S(live).ogg")
+def start_rec() 
+    source.shutdown(!rec_source)
+    rec_source := output.file(on_close=inbad.rec_stopped,
+        %vorbis(samplerate=44100, channels=2,
+        quality=0.4), rec_path^"%Y/%m-%d/%H:%M:%S(live).ogg", final_output)
     log("start_rec")
 end
