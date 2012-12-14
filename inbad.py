@@ -20,11 +20,19 @@ class radioctl(jsonrpc.JSONRPC):
         self.service = service
         self.allowNone = True
 
+    def jsonrpc_authdj(self,user,pwd):
+        return True
+
     def _getFunction(self, path):
-        def _fun(*d):
-            print repr(d)
-            self.service.event_pub(path, d)
-        return _fun
+        f = getattr(self, "jsonrpc_%s" % path, None)
+        print f, "jsonrpc_%s" % path
+        if f:
+            return f
+        else:
+            def _fun(*d):
+                print repr(d)
+                self.service.event_pub(path, d)
+            return _fun
 
 
 class RCPSService(service.MultiService):
@@ -154,12 +162,11 @@ class RCPSService(service.MultiService):
         self.metalog.flush()
 
 
-print 'b_load'
 application=service.Application('inbad')
 s = RCPSService()
 serviceCollection = service.IServiceCollection(application)
 s.setServiceParent(serviceCollection)
 internet.TCPServer(8005, server.Site(s.getJSONResource()), interface='127.0.0.1').setServiceParent(serviceCollection)
-internet.TCPClient(conf.IRC_HOST, 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
+#internet.TCPClient(conf.IRC_HOST, 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
 internet.TCPClient('localhost', 1234, s.getLSFactory()).setServiceParent(serviceCollection)
 #internet.TCPServer(8010, server.Site(s.getWebResource())).setServiceParent(serviceCollection)
