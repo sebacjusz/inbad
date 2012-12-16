@@ -7,8 +7,9 @@ def assoc_any(k, l, default)=
 end
 
 input_list = ref []
+output_source = ref noise()
 
-def mixer.output()=
+def mixer.create_source()=
     def amp(s)=
         p = snd(s)
         n = fst(s)
@@ -19,9 +20,57 @@ def mixer.output()=
     add(sources)
 end
 
+def mixer.output()=
+    source.dynamic({[!output_source]})
+end
+
+def mixer.rebuild()=
+    old = !output_source
+    output_source := mixer.create_source()
+    source.shutdown(old)
+end
+
+server.register("mixer.rebuild", fun(_)->begin mixer.rebuild() "ok" end)
+
 def mixer.add(k,s,~vol=0.0)=
     input_list := list.append([(k,(s,vol))], !input_list)
 end
+
+def mixer.remove(key, ~destroy=true) = 
+  def parse_list(ret, current_element) = 
+    # ret is of the form: (matching_sources, remaining_sources)
+    matching_sources = fst(ret)
+    remaining_sources = snd(ret)
+
+    k = fst(current_element)
+    if k == key then
+      (list.append( [snd(current_element)], 
+                     matching_sources),
+       remaining_sources)
+    else
+      (matching_sources,
+       list.append([current_element], 
+                    remaining_sources))
+    end
+  end
+    
+  result = list.fold(parse_list, ([], []), !input_list)
+  matching_sources = fst(result)
+  remaining_sources = snd(result)
+
+  input_list := remaining_sources
+
+  if list.length(matching_sources) == 0 then
+      log("(mixer.remove)FAIL: id not found")
+  else
+    if destroy then
+        list.iter(fun(i)->source.shutdown(fst(i)), matching_sources)
+        mixer.rebuild()
+    end
+  end
+end
+
+server.register("mixer.remove", fun(k)->begin mixer.remove(k) "ok" end)
 
 def mixer.getdata()=
     f = fun(i) -> (fst(i), snd(snd(i)))
