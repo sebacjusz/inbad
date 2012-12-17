@@ -3,6 +3,7 @@
 
 from twisted.internet import reactor, protocol, defer, task
 from twisted.protocols.basic import LineReceiver
+import json
 
 
 class LiquidsoapProtocol(LineReceiver):
@@ -41,6 +42,14 @@ class LiquidsoapProtocol(LineReceiver):
         self.incoming = ""
         self.sendLine(cmd)
         return self.current_cmd
+
+    def getMixer(self):
+        d = self.call("mixer.getdata")
+        return d.addCallback(json.loads)
+
+    def setMixer(self, k, v):
+        cmd = "mixer.set %s:%f" %(k, float(v))
+        return self.call(cmd)
 
 
 class LiquidsoapFactory(protocol.ReconnectingClientFactory):
