@@ -3,13 +3,14 @@
 
 from twisted.internet import reactor, protocol, defer, task
 from twisted.protocols.basic import LineReceiver
+from collections import deque
 import json
 
 
 class LiquidsoapProtocol(LineReceiver):
     def __init__(self):
-        self.current_cmd = None
         self.incoming = ""
+        self.queue = deque()
 
     def connectionMade(self):
         self.current_cmd = None
@@ -27,21 +28,27 @@ class LiquidsoapProtocol(LineReceiver):
             self.current_cmd.errback(Exception("Connection to Liquidsoap lost"))
 
     def lineReceived(self, line):
-        if not self.current_cmd:
+        if len(self.queue)==0:
             print 'ERR: recieved "%s", but nothing was requested' % repr(line)
         if line.startswith("END"):
-            self.current_cmd.callback(self.incoming)
-            self.current_cmd = None
+            _,d = self.queue.pop()
+            if len(self.queue)>0:
+                self.sendLine(self.queue[-1][0])
+            # WARNING: callback MUST be called AFTER sending any pending request
+            # Otherwise, bad things happen if the callback calls another command.
+            d.callback(self.incoming.decode('utf-8'))
+            self.incoming = ""
         else:
             self.incoming += line + '\n'
 
     def call(self, cmd):
-        if self.current_cmd:    # TODO: make this async
-            raise Exception("command already called")
-        self.current_cmd = defer.Deferred()
-        self.incoming = ""
-        self.sendLine(cmd)
-        return self.current_cmd
+        if type(cmd) == unicode:
+            cmd = cmd.encode('utf-8')
+        d = defer.Deferred()
+        self.queue.appendleft((cmd,d))
+        if len(self.queue)==1:
+            self.sendLine(cmd)
+        return d
 
     def getMixer(self):
         d = self.call("mixer.getdata")
