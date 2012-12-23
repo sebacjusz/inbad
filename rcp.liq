@@ -45,9 +45,10 @@ std_icecast(%mp3.abr(min_bitrate=128, bitrate=192, max_bitrate=256),
     mount = "mp3-abr-hq.mp3", final_output)
 
 def start_rec() 
-    source.shutdown(!rec_source)
     rec_source := output.file(on_close=inbad.rec_stopped,
         %vorbis(samplerate=44100, channels=2,
         quality=0.6), rec_path^"%Y/%m-%d/%H:%M:%S(live).ogg", final_output)
     log("start_rec")
 end
+register_rec_start(start_rec)
+register_rec_stop(fun()->source.shutdown(!rec_source))
