@@ -8,3 +8,6 @@ idle.mp3
 tmp_rec.ogg
 .*.swp
 config.liq
+*.autosave
+*.pro.user
+januszpanel-build*/
