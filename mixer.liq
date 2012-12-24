@@ -8,16 +8,23 @@ end
 
 input_list = ref []
 output_source = ref noise()
+meta_master = ref ""
+_def = (blank(),(0.0,[]))
+_insert_meta = ref fun(m)->ignore(0)
 
 def mixer.create_source()=
     def amp(s)=
         p = snd(s)
         n = fst(s)
-        f = fun()-> snd(assoc_any(n, !input_list, (blank(),0.0)))
+        f = fun()-> fst(snd(assoc_any(n, !input_list, _def)))
         amplify(f, fst(p))
     end
+    m_s = fst(assoc_any(!meta_master, !input_list, (assoc_any("idle", !input_list, _def))))
     sources = list.map(amp, !input_list)
-    add(sources)
+    op = insert_metadata(add(sources))
+    _insert_meta := fst(op)
+    ignore(on_metadata(fst(op), m_s))
+    snd(op)
 end
 
 def mixer.output()=
@@ -32,8 +39,27 @@ end
 
 server.register("mixer.rebuild", fun(_)->begin mixer.rebuild() "ok" end)
 
+def mixer.set_master(k)=
+    meta_master := k
+    _f = !_insert_meta
+    _f(snd(snd(assoc_any(!meta_master, !input_list, _def))))
+    "ok"
+end
+server.register("mixer.set_master", mixer.set_master)
+
+def mixer.set_meta(k, v)=
+    def f(i)=
+        if fst(i)==k then
+            (k, (fst(snd(i)), (fst(snd(snd(i))), v)))
+        else
+            i
+        end
+    end
+    input_list := list.map(f, !input_list)
+end
 def mixer.add(k,s,~vol=0.0)=
-    input_list := list.append([(k,(s,vol))], !input_list)
+    _s = on_metadata(fun(m)->mixer.set_meta(k,m), s)
+    input_list := list.append([(k,(_s,(vol, [])))], !input_list)
 end
 
 def mixer.remove(key, ~destroy=true) = 
@@ -73,7 +99,7 @@ end
 server.register("mixer.remove", fun(k)->begin mixer.remove(k) "ok" end)
 
 def mixer.getdata()=
-    f = fun(i) -> (fst(i), snd(snd(i)))
+    f = fun(i) -> (fst(i), fst(snd(snd(i))))
     list.map(f, !input_list)
 end
 
@@ -82,7 +108,7 @@ server.register("mixer.getdata", fun(_)-> json_of(mixer.getdata()))
 def mixer.set(k, v)=
     def f(i)=
         if fst(i)==k then
-            (k, (fst(snd(i)), v))
+            (k, (fst(snd(i)), (v, snd(snd(snd(i))))))
         else
             i
         end

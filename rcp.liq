@@ -27,13 +27,12 @@ jng_pls = playlist.safe("jng.pls", mime_type="audio/mpegurl", mode="random")
 idle_r = random(weights=[1, 10], [jng_pls, standby_loop])
 
 mixer.add("dj", dj_input, vol=1.0)
-mixer.add("request", request_input)
 mixer.add("idle", idle_r, vol=0.3)
 #calling rebuild before any sources are running causes an exception
 add_timeout(0.5,fun()->begin mixer.rebuild() (-1.0) end)
 sos = fallback(track_sensitive=false, [override_input, mixer.output(),idle_r])
 
-final_output = on_track(new_metadata, server.rms(id="final_output",sos))
+final_output = on_metadata(new_metadata, server.rms(id="final_output",sos))
 
 std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.5),
     mount = "vorbis-hq.ogg", final_output)
