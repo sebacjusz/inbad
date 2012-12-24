@@ -40,18 +40,6 @@ dj_input = input.harbor("dj", port=8001, max=5., auth=inbad.auth_dj,
     on_connect=_new_connection,
     on_disconnect=_disconnect)
 
-request_enable = ref true
-
-def new_request()=
-    request.create("/mnt/soft/M/Pryda/37. Pryda - Mirage.mp3")
-end
-
-server.register("request_enable", fun(a) -> begin
-    request_enable := (if a == "true" then true else false end) "ok" end)
-
-#request_input = at({!request_enable}, request.dynamic(new_request))
-request_input = request.dynamic(new_request)
-
 def create_request(id)=
     s = request.equeue(id=id)
     mixer.add(id, s)
