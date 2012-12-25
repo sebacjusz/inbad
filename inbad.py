@@ -51,15 +51,6 @@ class RCPSService(service.MultiService):
         self.statlog = open(conf.STATLOG, 'a')
         print >>self.statlog, '\n'
         #task.LoopingCall(self.logStat).start(30)
-        def _rms():
-            def _prrms(x):
-                print 'RMS:', x,
-            try:
-                d = self.lsf.instance.call('final_output.rms')
-                d.addCallback(_prrms)
-            except AttributeError:
-                print 'RMS: lsclient not found'
-        task.LoopingCall(_rms).start(3)
         service.MultiService.startService(self)
 
     def subscribe(self, event, f):
@@ -68,7 +59,7 @@ class RCPSService(service.MultiService):
         self.event_callbacks[event].append(f)
 
     def event_pub(self, event, *args):
-        print 'event: %s' % event
+        print 'event: %s(%s)' % (event, repr(args))
         for f in self.event_callbacks[event]:
             if not f or not callable(f):
                 self.event_callbacks[event].remove(f)

@@ -6,6 +6,17 @@ from twisted.protocols.basic import LineReceiver
 from collections import deque
 import json
 
+class LiquidsoapError(Exception):
+    def __init__(self, err):
+        self.error = err
+    def __repr__(self):
+        return 'LiquidsoapError(%s)' % self.error
+
+def _checkOK(resp):
+    if resp.startswith('ok'):
+        return True
+    else:
+        raise LiquidsoapError(resp)
 
 class LiquidsoapProtocol(LineReceiver):
     def __init__(self):
@@ -53,11 +64,29 @@ class LiquidsoapProtocol(LineReceiver):
     def getMixer(self):
         d = self.call("mixer.getdata")
         return d.addCallback(json.loads)
-
     def setMixer(self, k, v):
         cmd = "mixer.set %s:%f" %(k, float(v))
-        return self.call(cmd)
-
+        return self.call(cmd).addCallback(_checkOK)
+    def setMetadataMaster(self, k):
+        return self.call('mixer.set_master %s' % k).addCallback(_checkOK)
+    def createRequest(self, k):
+        return self.call('create_request %s' % k).addCallback(_checkOK)
+    def removeMixer(self, k):
+        return self.call('mixer.remove %s' % k).addCallback(_checkOK)
+    def pushRequest(self, k, url):
+        def _check(resp):
+            try:
+                return int(resp)
+            except ValueError:
+                raise LiquidsoapError(resp)
+        return self.call('%s.push %s' % (k,url)).addCallback(_check)
+    def getOutputRMS(self):
+        def _check(resp):
+            try:
+                return float(resp)
+            except ValueError:
+                raise LiquidsoapError(resp)
+        return self.call('final_output.rms').addCallback(_check)
 
 class LiquidsoapFactory(protocol.ReconnectingClientFactory):
     protocol = LiquidsoapProtocol
