@@ -32,7 +32,7 @@ class radioctl(jsonrpc.JSONRPC):
         else:
             def _fun(*d):
                 print repr(d)
-                self.service.event_pub(path, d)
+                self.service.event_pub(path, *d)
             return _fun
 
 
@@ -40,8 +40,8 @@ class RCPSService(service.MultiService):
     def __init__(self):
         service.MultiService.__init__(self)
         self.metalog=open('/dev/null', 'a')
-        #self.poller = icecast.IcecastPoller(conf.ICE_MOUNT, conf.ICE_SERVERS)
-        #self.poller.setServiceParent(self)
+        self.poller = icecast.IcecastPoller(conf.ICE_MOUNT, conf.ICE_SERVERS)
+        self.poller.setServiceParent(self)
         self.event_callbacks = defaultdict(list)
         self.subscribe('new_track', self._metadataChanged)
         self.meta = None
@@ -106,6 +106,14 @@ class RCPSService(service.MultiService):
         return
         if self.meta:
             self.logMetadata()
+    
+    def getListenerCount(self, mode='all'):
+        if mode=='servers':
+            return {k: v['_listeners'] for k,v in self.poller.server_data.iteritems()}
+        elif mode=='total':
+            return sum(i['_listeners'] for i in self.poller.server_data.values())
+        else:
+            return {k: v['relays'] for k,v in self.poller.iteritems()}
 
     def streamStarted(self):
         self.listener_peak=0
@@ -176,7 +184,7 @@ s = RCPSService()
 serviceCollection = service.IServiceCollection(application)
 s.setServiceParent(serviceCollection)
 internet.TCPServer(8005, server.Site(s.getJSONResource()), interface='127.0.0.1').setServiceParent(serviceCollection)
-#internet.TCPClient(conf.IRC_HOST, 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
+internet.TCPClient(conf.IRC_HOST, 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
 internet.TCPClient('localhost', 1234, s.getLSFactory()).setServiceParent(serviceCollection)
 #internet.TCPServer(8010, server.Site(s.getWebResource())).setServiceParent(serviceCollection)
 internet.TCPServer(8002, s.getControllerFactory()).setServiceParent(serviceCollection)

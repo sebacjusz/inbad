@@ -44,6 +44,7 @@ def getStats(server, auth):
             for j in i:
                 i_d[j.tag] = j.text
             d[i.attrib['mount']] = convert(i_d)
+        d['_listeners'] = int(tree.find('listeners').text)
         return d
         #return dict([(i.attrib['mount'],
         #    convert(dict([(j.tag, j.text) for j in i]))) for i in tree.iter('source')])
@@ -114,7 +115,7 @@ class IcecastPoller(service.Service, dict):
             filt = lambda d: {k: d[k] for k in d if k in watch_keys}
             if filt(self.get(m, dict())) != filt(new):
                 self[m] = new
-                self.parent.event_pub('metadata_changed')
+                #self.parent.event_pub('metadata_changed')
                 self.log('meta for %s changed: %s' %(m, filt(new)), 1)
             else:   # yeah, that is pretty dumb.
                 self[m] = new

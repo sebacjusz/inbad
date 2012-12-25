@@ -20,7 +20,7 @@ class IRCBot(irc.IRCClient):
         self.bvars['msg_cb'] = {}
         self.authed_users = set()
         self.last_cmd = time.time()
-        self.factory.svc.subscribe('metadata_changed', lambda: self.c_np('', '#karachan', ''))
+        self.factory.svc.subscribe('metadata_changed', lambda: self.c_np('', '#vichan', ''))
         self.commands = {'!gra': self.c_np,
                             '!ile': self.c_ile}
         self.su_commands = {'!eval': self.c_eval,
@@ -29,12 +29,14 @@ class IRCBot(irc.IRCClient):
                                 '!setcb': lambda u,c,a: self.c_set(u,c,a, False, True)}
 
     def c_ile(self, user, channel, args):
-        m = self.factory.svc.meta
-        if not m:
-            return self.say(channel, 'offline')
-        ll = m['relays']
-        msg = '+ '.join(u'\x033%s\x03:\x034 %d\x03 ' % (i, ll[i]) for i in ll)
-        msg += u', razem słucha \x02%d\x02 anonków.' % sum(ll.values())
+        if args and '-all' in args:
+            m = self.factory.svc.getListenerCount()
+            m_mount = lambda d: (u'\x034%s\x03: '%d) + ','.join(u'%s:\x033 %d\x03'%(k.split(':')[0],v) for k,v in m[d].iteritems())
+            msg = ' |'.join(m_mount(i) for i in m)
+        else:
+            m = self.factory.svc.getListenerCount('servers')
+            msg = '| '.join(u'\x034%s\x03:\x033 %d\x03' % (k.split(':')[0], v) for k,v in m.iteritems())
+        msg += u'\nrazem słucha \x02%d\x02 anonków.' % self.factory.svc.getListenerCount('total')
         return self.say(channel, msg.encode('utf-8'))
 
     def c_np(self, user, channel, args):
@@ -98,7 +100,7 @@ class IRCBot(irc.IRCClient):
     def signedOn(self):
         self.msg('nickserv', 'identify ' + conf.NICKSERV_PASS)
         self.join(self.factory.channel)
-        self.say(self.factory.channel, conf.BANNER)
+        #self.say(self.factory.channel, conf.BANNER)
 
     def connectionMade(self):
         self.nickname = self.factory.nickname
