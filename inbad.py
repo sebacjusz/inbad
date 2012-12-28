@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import division
 from twisted.web import server, client
 from txjsonrpc.web import jsonrpc
 from twisted.internet import reactor, protocol, defer, task
 from twisted.application import service, internet
-import os, time
+import os, time, random
 from collections import defaultdict
 import datetime
 import inba_cfg as conf
@@ -132,6 +133,23 @@ class RCPSService(service.MultiService):
         m = _match(conf.MP3_DIR, q)
         if m:
             return self.lsf.instance.pushRequest(k, m)
+
+    def getListenURL(self, mount):
+        srv_all = [conf.ICE_MOUNT[mount][0]] + conf.ICE_MOUNT[mount][1].keys()
+        srv_l = {k:v for k,v in self.getListenerCount('servers',True).items() if k in srv_all}
+        srv_w = {k:1 - (v/conf.ICE_LIMITS[k]) for k,v in srv_l.items()}
+        tot = sum(srv_w.values())
+        r = random.uniform(0, tot - 0.01)
+        print 'srvw', srv_w, 'r', r
+        csum=0
+        for k,v in srv_w.items():
+            if csum+v >= r:
+                if k == conf.ICE_MOUNT[mount][0]:
+                    return 'http://'+k+mount
+                else:
+                    return 'http://'+k+conf.ICE_MOUNT[mount][1][k]
+            csum += v
+        assert False
 
     def streamStarted(self):
         self.listener_peak=0
