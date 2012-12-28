@@ -46,6 +46,7 @@ class RCPSService(service.MultiService):
         self.subscribe('new_track', self._metadataChanged)
         self.meta = None
         self.meta_fmt = MetaFormatter(self)
+        self.ircf = []
 
     def startService(self):
         self.statlog = open(conf.STATLOG, 'a')
@@ -69,12 +70,12 @@ class RCPSService(service.MultiService):
     def getJSONResource(self):
         return radioctl(self)
 
-    def getIRCFactory(self):
+    def getIRCFactory(self, chan):
         f = IRCFactory()
-        f.channel = conf.IRC_CHANNEL
+        f.channel = chan
         f.nickname = conf.IRC_NICK
         f.svc = self
-        self.ircf = f
+        self.ircf.append(f)
         return f
 
     def getLSFactory(self):
@@ -98,13 +99,39 @@ class RCPSService(service.MultiService):
         if self.meta:
             self.logMetadata()
     
-    def getListenerCount(self, mode='all'):
+    def getListenerCount(self, mode='all', absolute=False):
         if mode=='servers':
-            return {k: v['_listeners'] for k,v in self.poller.server_data.iteritems()}
+            if absolute:
+                return {k: v['_listeners'] for k,v in self.poller.server_data.iteritems()}
+            else:
+                ret = {k:0 for k in conf.ICE_SERVERS}
+                for mount in self.poller.values():
+                    for k,v in mount['relays'].iteritems():
+                        ret[k] += v
+                return ret
         elif mode=='total':
-            return sum(i['_listeners'] for i in self.poller.server_data.values())
+            return sum(self.getListenerCount('servers', absolute).values())
         else:
             return {k: v['relays'] for k,v in self.poller.iteritems()}
+
+    def fuzzyQueue(self, k, q):
+        if '..' in q or sum(1 for i in q if i=='/')>5:
+            raise Exception('ale papierza pawlaka wielkiego polaka to ty szanuj')
+        def _match(path, lq):
+            x,sep,xs = lq.partition('/')
+            ld = os.listdir(path)
+            if x in ld:     # exact
+                ld = [x] 
+            for i in ld:
+                if x.lower() in i.lower():
+                    if sep and os.path.isdir(path+i):
+                        return _match(path+i+'/', xs)
+                    if not sep and os.path.isfile(path+i):
+                        return path+i
+            return None
+        m = _match(conf.MP3_DIR, q)
+        if m:
+            return self.lsf.instance.pushRequest(k, m)
 
     def streamStarted(self):
         self.listener_peak=0
@@ -175,7 +202,8 @@ s = RCPSService()
 serviceCollection = service.IServiceCollection(application)
 s.setServiceParent(serviceCollection)
 internet.TCPServer(8005, server.Site(s.getJSONResource()), interface='127.0.0.1').setServiceParent(serviceCollection)
-internet.TCPClient(conf.IRC_HOST, 6667, s.getIRCFactory()).setServiceParent(serviceCollection)
+for h,c in conf.IRC_CHANNELS.iteritems():
+    internet.TCPClient(h, 6667, s.getIRCFactory(c)).setServiceParent(serviceCollection)
 internet.TCPClient('localhost', 1234, s.getLSFactory()).setServiceParent(serviceCollection)
 #internet.TCPServer(8010, server.Site(s.getWebResource())).setServiceParent(serviceCollection)
 internet.TCPServer(8002, s.getControllerFactory()).setServiceParent(serviceCollection)
