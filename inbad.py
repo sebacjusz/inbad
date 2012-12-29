@@ -5,7 +5,7 @@ from twisted.web import server, client
 from txjsonrpc.web import jsonrpc
 from twisted.internet import reactor, protocol, defer, task
 from twisted.application import service, internet
-import os, time, random
+import os, time, random, json
 from collections import defaultdict
 import datetime
 import inba_cfg as conf
@@ -14,6 +14,7 @@ import icecast
 from liquidsoap import *
 from util import *
 from controller import *
+from www import WebInterface
 
 
 class radioctl(jsonrpc.JSONRPC):
@@ -88,8 +89,12 @@ class RCPSService(service.MultiService):
         f = ControllerFactory(self)
         return f
 
+    def getWWWFactory(self):
+        self.wwwf = WebInterface(self)
+        return self.wwwf
+
     def auth(self, user, pwd):
-        if user == 'peja' and pwd == 'tibia':
+        if (user == 'peja' and pwd == 'tibia') or (user=='source' and pwd=='papadens'):
             return True
         else: return False
 
@@ -225,3 +230,4 @@ for h,c in conf.IRC_CHANNELS.iteritems():
 internet.TCPClient('localhost', 1234, s.getLSFactory()).setServiceParent(serviceCollection)
 #internet.TCPServer(8010, server.Site(s.getWebResource())).setServiceParent(serviceCollection)
 internet.TCPServer(8002, s.getControllerFactory()).setServiceParent(serviceCollection)
+internet.TCPServer(8010, s.getWWWFactory()).setServiceParent(serviceCollection)
