@@ -15,6 +15,7 @@ from liquidsoap import *
 from util import *
 from controller import *
 from www import WebInterface
+import json
 
 
 class radioctl(jsonrpc.JSONRPC):
@@ -28,12 +29,10 @@ class radioctl(jsonrpc.JSONRPC):
 
     def _getFunction(self, path):
         f = getattr(self, "jsonrpc_%s" % path, None)
-        print f, "jsonrpc_%s" % path
         if f:
             return f
         else:
             def _fun(*d):
-                print repr(d)
                 self.service.event_pub(path, *d)
             return _fun
 
@@ -45,15 +44,16 @@ class RCPSService(service.MultiService):
         self.poller = icecast.IcecastPoller(conf.ICE_MOUNT, conf.ICE_SERVERS)
         self.poller.setServiceParent(self)
         self.event_callbacks = defaultdict(list)
-        self.subscribe('new_track', self._metadataChanged)
         self.meta = None
         self.meta_fmt = MetaFormatter(self)
         self.ircf = []
+        self.subscribe('new_track', self._metadataChanged)
+        self.subscribe('rec_stopped', self._recordingFinished)
 
     def startService(self):
         self.statlog = open(conf.STATLOG, 'a')
         print >>self.statlog, '\n'
-        #task.LoopingCall(self.logStat).start(30)
+        task.LoopingCall(self.logStat).start(30)
         service.MultiService.startService(self)
 
     def subscribe(self, event, f):
@@ -145,7 +145,6 @@ class RCPSService(service.MultiService):
         srv_w = {k:1 - (v/conf.ICE_LIMITS[k]) for k,v in srv_l.items()}
         tot = sum(srv_w.values())
         r = random.uniform(0, tot - 0.01)
-        print 'srvw', srv_w, 'r', r
         csum=0
         for k,v in srv_w.items():
             if csum+v >= r:
@@ -155,6 +154,12 @@ class RCPSService(service.MultiService):
                     return 'http://'+k+conf.ICE_MOUNT[mount][1][k]
             csum += v
         assert False
+
+    def _recordingFinished(self, path):
+        t = time.strftime('-%H:%M:%S')
+        pnew = path.replace('(live)', t)
+        os.rename(path, pnew)
+        print 'moved rec', path, 'to', pnew
 
     def streamStarted(self):
         self.listener_peak=0
@@ -193,13 +198,7 @@ class RCPSService(service.MultiService):
         self.ffmpeg.signalProcess('KILL')
 
     def logStat(self):
-        m=self.metadata.get('dj')
-        if not m or not m.has_key('listeners') or not m.has_key('relays'):
-            return
-        ll = [('pawlacz.tk:8000', m['listeners']-len(m['relays']))] + m['relays']
-        ss = sum(i[1] for i in ll)
-        self.listener_peak = ss if ss > self.listener_peak else self.listener_peak
-        print >>self.statlog, int(time.time()), ' '.join( '|'.join(map(str,i)) for i in ll )
+        print >>self.statlog, int(time.time()), json.dumps(self.getListenerCount('all'))
         self.statlog.flush()
     
     def logMetadata(self, no_check=0):
