@@ -106,7 +106,8 @@ class IcecastPoller(service.Service, dict):
                 if i_mount not in i_data:
                     continue
                 if i_data['_last_update'] + self.timeout < time.time():
-                    del new['relays'][i]    # don't count relays that went down
+                    if i in new['relays']:
+                        del new['relays'][i]    # don't count relays that went down
                 else:
                     new['relays'][i] = i_data[i_mount]['listeners']
 
