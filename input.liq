@@ -11,13 +11,14 @@ override_input = input.harbor("master_override", password=override_pass, port=80
     on_connect=fun(_)-> ignore(inbad.call("override_connected")),
     on_disconnect=fun() -> ignore(inbad.call("override_connected")))
 
-def _new_connection(_)=
+def _new_connection(meta)=
+    print(meta)
     dj_connections := !dj_connections + 1
     if !dj_connections == 1 then
         f = !rec_start_fun
         ignore(f())
     end
-    inbad.dj_connected(_)
+    inbad.dj_connected(meta)
 end
 def _disconnect()=
     dj_connections := !dj_connections - 1
@@ -35,8 +36,8 @@ end
 def register_rec_start(f)=
     rec_start_fun := f
 end
-
-dj_input = input.harbor("dj", port=8001, max=5., auth=inbad.auth_dj,
+auth_fun = fun(u,p)-> if u == "source" then inbad.auth_dj("dj", p) else false end
+dj_input = input.harbor("dj", port=8001, max=5., auth=auth_fun,
     on_connect=_new_connection,
     on_disconnect=_disconnect)
 

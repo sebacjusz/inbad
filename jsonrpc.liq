@@ -21,9 +21,9 @@ jsonrpc.calld = fun(s,f,a)->jsonrpc._call(s,_jsonify(f,a))
 inbad.call = jsonrpc.call("http://localhost:8005/")
 inbad.calld = jsonrpc.calld("http://localhost:8005/")
 
-inbad.dj_connected = fun(_) -> ignore(inbad.call("server_sourceConnected"))
-inbad.dj_disconnected = fun() -> ignore(inbad.call("server_sourceDisconnected"))
-inbad.rec_stopped = fun(file) -> ignore(inbad.call("server_recStopped",
+inbad.dj_connected = fun(_) -> ignore(inbad.call("source_connected"))
+inbad.dj_disconnected = fun() -> ignore(inbad.call("source_disconnected"))
+inbad.rec_stopped = fun(file) -> ignore(inbad.call("rec_stopped",
     arg=[file]))
 
 def inbad.auth_dj(user,pass) =

@@ -94,7 +94,7 @@ class RCPSService(service.MultiService):
         return self.wwwf
 
     def auth(self, user, pwd):
-        if (user == 'peja' and pwd == 'tibia') or (user=='source' and pwd=='papadens'):
+        if (user == 'peja' and pwd == 'tibia') or (user=='dj' and pwd=='papadens'):
             return True
         else: return False
 
