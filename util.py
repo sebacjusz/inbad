@@ -11,6 +11,10 @@ class MetaFormatter(object):
     def __call__(self, fmt=PLAIN, time_fmt=None, track=True, s_name=False, s_desc=False, notify_offline=False):
         m = self.svc.meta
         if not m:
+            return u"no data"
+        m['server_name'] = u'Radio Chłodna Piwnica'
+        s_desc = False
+        if m.get('_idle'):
             if notify_offline:
                 return u"nie ma inby, kłapołech zjat."
             return
