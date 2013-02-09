@@ -20,22 +20,38 @@ class IRCBot(irc.IRCClient):
         self.bvars['msg_cb'] = {}
         self.authed_users = set()
         self.last_cmd = time.time()
-        self.factory.svc.subscribe('metadata_changed', lambda: self.c_np('', '#vichan', ''))
         self.commands = {'!gra': self.c_np,
-                            '!ile': self.c_ile}
+                '!ile': self.c_ile,
+                '!listen': self.c_listen}
         self.su_commands = {'!eval': self.c_eval,
-                                '!set': self.c_set,
-                                '!setcmd': lambda u,c,a: self.c_set(u,c,a, True),
-                                '!setcb': lambda u,c,a: self.c_set(u,c,a, False, True)}
+                '!set': self.c_set,
+                '!setcmd': lambda u,c,a: self.c_set(u,c,a, True),
+                '!setcb': lambda u,c,a: self.c_set(u,c,a, False, True),
+                '!fqueue': self.c_fqueue}
+
+    def c_listen(self, u, c, a):
+        m = [i for i in conf.ICE_MOUNT if a in i]
+        if len(m) != 1:
+            return
+        return self.say(c, self.factory.svc.getListenURL(m[0]))
+
+    def c_fqueue(self, u, c, a):
+        k,_,p = a.partition(':')
+        if not k or not p:
+            return self.say(c, u'za mało parametrów'.encode('utf-8'))
+        r = self.factory.svc.fuzzyQueue(k, p)
+        if not r:
+            return self.say(c, 'error')
+        else: self.say(c, 'ok')
 
     def c_ile(self, user, channel, args):
         if args and '-all' in args:
             m = self.factory.svc.getListenerCount()
-            m_mount = lambda d: (u'\x034%s\x03: '%d) + ','.join(u'%s:\x033 %d\x03'%(k.split(':')[0],v) for k,v in m[d].iteritems())
-            msg = ' |'.join(m_mount(i) for i in m)
+            m_mount = lambda d: (u'\x034%s\x03: '%d) + ','.join(u'%s:\x033 %d\x03 '%(k.split(':')[0],v) for k,v in m[d].iteritems())
+            msg = '|'.join(m_mount(i) for i in m)
         else:
             m = self.factory.svc.getListenerCount('servers')
-            msg = '| '.join(u'\x034%s\x03:\x033 %d\x03' % (k.split(':')[0], v) for k,v in m.iteritems())
+            msg = '| '.join(u'\x034 %s\x03:\x033 %d\x03' % (k.split(':')[0], v) for k,v in m.iteritems())
         msg += u'\nrazem słucha \x02%d\x02 anonków.' % self.factory.svc.getListenerCount('total')
         return self.say(channel, msg.encode('utf-8'))
 
@@ -43,15 +59,6 @@ class IRCBot(irc.IRCClient):
         msg = self.factory.svc.meta_fmt(fmt=MetaFormatter.IRC, track=True,
                 s_name=True, s_desc=True, notify_offline=True, time_fmt=None)
         return self.say(channel, msg.encode('utf-8'))
-        ##############
-        md = self.factory.svc.meta
-        if not md:
-            return self.say(channel, u'nie ma inby, kłapołech zjat.'.encode('utf-8'))
-        s = u"\x02\x034%s\x03\x02%s właśnie nakurwia: \x02%s\x02 - %s"
-        desc=''
-        if md['server_description']:
-            desc = u"(\x039%s\x03)" % md['server_description']
-        msg = s % (md.get('server_name'), desc, md.get('artist'), md.get('title'))
 
     def c_eval(self, user, channel, args):
         try:
@@ -98,7 +105,7 @@ class IRCBot(irc.IRCClient):
                 self.say(chan, "\x02\x034%s" % repr(sys.exc_info()[1]))
 
     def signedOn(self):
-        self.msg('nickserv', 'identify ' + conf.NICKSERV_PASS)
+        #self.msg('nickserv', 'identify ' + conf.NICKSERV_PASS)
         self.join(self.factory.channel)
         #self.say(self.factory.channel, conf.BANNER)
 
