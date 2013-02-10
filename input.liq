@@ -36,10 +36,6 @@ end
 def register_rec_start(f)=
     rec_start_fun := f
 end
-auth_fun = fun(u,p)-> if u == "source" then inbad.auth_dj("dj", p) else false end
-dj_input = input.harbor("dj", port=8001, max=5., auth=auth_fun,
-    on_connect=_new_connection,
-    on_disconnect=_disconnect)
 
 def create_request(id)=
     s = request.equeue(id=id)
@@ -47,4 +43,15 @@ def create_request(id)=
     "ok"
 end
 
+auth_fun = fun(u,p)-> if u == "source" then inbad.auth_dj("dj", p) else false end
+def create_input(id)=
+    s = input.harbor(id, port=8001, max=5., auth=auth_fun,
+        on_connect=_new_connection,
+        on_disconnect=_disconnect)
+    mixer.add(id, s)
+    "ok"
+end
+
+
 server.register("create_request", create_request)
+server.register("create_input", create_input)
