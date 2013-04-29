@@ -54,11 +54,15 @@ std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.5),
 output.harbor(auth=inbad.auth_dj, mount="/monitor-flac.ogg", port=8001,
     %ogg(%flac(compression=7, bits_per_sample=16)), final_output)
 
-def start_rec() 
+def start_rec2() 
     rec_source := output.file(on_close=inbad.rec_stopped,
         %vorbis(samplerate=44100, channels=2,
-        quality=0.6), rec_path^"%Y/%m-%d/%H:%M:%S(live).ogg", final_output)
+        quality=0.6), rec_path^"%Y/%m-%d/%H:%M:%S(live).ogg",
+        drop_metadata(final_output))
     log("start_rec")
+    (-(1.))
 end
+start_rec = fun()-> add_timeout(4., start_rec2)
+
 register_rec_start(start_rec)
 register_rec_stop(fun()->source.shutdown(!rec_source))
