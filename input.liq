@@ -43,8 +43,8 @@ def create_request(id)=
     "ok"
 end
 
-auth_fun = fun(u,p)-> if u == "source" then inbad.auth_dj("dj", p) else false end
 def create_input(id)=
+    auth_fun = fun(u,p)-> if u == "source" then inbad.auth_dj(id, p) else false end
     s = input.harbor(id, port=8001, max=5., auth=auth_fun,
         on_connect=_new_connection,
         on_disconnect=_disconnect)
