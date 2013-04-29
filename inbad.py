@@ -94,6 +94,9 @@ class RCPSService(service.MultiService):
         return self.wwwf
 
     def auth(self, user, pwd):
+        print '__auth user', user, 'with pass', pwd
+        if user.endswith('.ogg'):
+            user = user[:-4]
         if (user == 'peja' and pwd == 'tibia') or (user=='dj' and pwd=='papadens'):
             return True
         else: return False
