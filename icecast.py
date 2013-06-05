@@ -15,6 +15,7 @@ watch_keys = ('artist', 'title', 'server_description', 'server_name')
 
 
 def _stderrback(e):
+    print '____errback'
     e.printBriefTraceback()
 
 
@@ -36,6 +37,9 @@ def getStats(server, auth):
                     d[k] = d[k].decode('cp1250')
             elif k in ('listeners', 'listener_peak'):
                 d[k] = int(d.get(k, 0))
+        #icecast sometimes returns an empty string
+        if type(d['listeners']) == unicode:
+            d['listeners'] = 0 
         return d
     def parse_data(tree):
         d={}
@@ -112,7 +116,13 @@ class IcecastPoller(service.Service, dict):
                     new['relays'][i] = i_data[i_mount]['listeners']
 
             if self.master_in_relays:
-                new['relays'][self.mounts[m].master] = new['listeners'] - len(new['relays'])
+                try:
+                    new['relays'][self.mounts[m].master] = new['listeners'] - len(new['relays'])
+                except TypeError:
+                    print 'tapierz panczy'
+                    print 's.mounts', self.mounts
+                    print 'new', new
+                    return
             filt = lambda d: {k: d[k] for k in d if k in watch_keys}
             if filt(self.get(m, dict())) != filt(new):
                 self[m] = new

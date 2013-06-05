@@ -32,17 +32,17 @@ class IRCBot(irc.IRCClient):
     def c_listen(self, u, c, a):
         m = [i for i in conf.ICE_MOUNT if a in i]
         if len(m) != 1:
-            return
-        return self.say(c, self.factory.svc.getListenURL(m[0]))
+            return self.msg(c, u'!listen <typ> | typ: hq, mq, lq')
+        return self.msg(c, self.factory.svc.getListenURL(m[0]))
 
     def c_fqueue(self, u, c, a):
         k,_,p = a.partition(':')
         if not k or not p:
-            return self.say(c, u'za mało parametrów'.encode('utf-8'))
+            return self.msg(c, u'za mało parametrów'.encode('utf-8'))
         r = self.factory.svc.fuzzyQueue(k, p)
         if not r:
-            return self.say(c, 'error')
-        else: self.say(c, 'ok')
+            return self.msg(c, 'error')
+        else: self.msg(c, 'ok')
 
     def c_ile(self, user, channel, args):
         if args and '-all' in args:
@@ -53,12 +53,12 @@ class IRCBot(irc.IRCClient):
             m = self.factory.svc.getListenerCount('servers')
             msg = '| '.join(u'\x034 %s\x03:\x033 %d\x03' % (k.split(':')[0], v) for k,v in m.iteritems())
         msg += u'\nrazem słucha \x02%d\x02 anonków.' % self.factory.svc.getListenerCount('total')
-        return self.say(channel, msg.encode('utf-8'))
+        return self.msg(channel, msg.encode('utf-8'))
 
     def c_np(self, user, channel, args):
         msg = self.factory.svc.meta_fmt(fmt=MetaFormatter.IRC, track=True,
                 s_name=True, s_desc=True, notify_offline=True, time_fmt=None)
-        return self.say(channel, msg.encode('utf-8'))
+        return self.msg(channel, msg.encode('utf-8'))
 
     def c_eval(self, user, channel, args):
         try:
@@ -69,21 +69,21 @@ class IRCBot(irc.IRCClient):
                         s = unicode(l)
                     else:
                         s=unicode(l[0])
-                    self.say(channel, s.encode('utf-8'), conf.MAXLEN)
+                    self.msg(channel, s.encode('utf-8'), conf.MAXLEN)
                 return ev.addCallback(_ff)
-            return self.say(channel, unicode(ev).encode('utf-8'), conf.MAXLEN)
+            return self.msg(channel, unicode(ev).encode('utf-8'), conf.MAXLEN)
         except:
-            return self.say(channel, "\x02\x034%s" % repr(sys.exc_info()[1]))
+            return self.msg(channel, "\x02\x034%s" % repr(sys.exc_info()[1]))
 
     def c_set(self, user, chan, args, assign_cmd=False, msg_cb=False):
         if not args:
-            return self.say(chan, ("known terms: %s" % ','.join(map(unicode, self.bvars))).encode('utf-8'), conf.MAXLEN)
+            return self.msg(chan, ("known terms: %s" % ','.join(map(unicode, self.bvars))).encode('utf-8'), conf.MAXLEN)
         al = args.split(None, 1)
         if len(al) == 1:  # display value
             if al[0] in self.bvars:
-                self.say(chan, unicode(self.bvars[al[0]]).encode('utf-8'), conf.MAXLEN)
+                self.msg(chan, unicode(self.bvars[al[0]]).encode('utf-8'), conf.MAXLEN)
             else:
-                self.say(chan, 'variable not found')
+                self.msg(chan, 'variable not found')
         else:
             try:
                 if msg_cb:
@@ -91,7 +91,7 @@ class IRCBot(irc.IRCClient):
                     if type(t[0]) == str and callable(t[1]):
                         self.bvars['msg_cb'][t[0]] = (re.compile(t[0], re.IGNORECASE), t[1])
                     else:
-                        return self.say(chan, '\x034err\x03')
+                        return self.msg(chan, '\x034err\x03')
                 else:
                     t = eval(al[1], self.bvars)
                     self.bvars[al[0]] = t
@@ -99,15 +99,19 @@ class IRCBot(irc.IRCClient):
                         if callable(t):
                             self.commands['!' + al[0]] = t
                         else:
-                            return self.say(chan, '\x034 %s is not callable\x03' % str(type(t)))
-                self.say(chan, '\x033ok\x03')
+                            return self.msg(chan, '\x034 %s is not callable\x03' % str(type(t)))
+                self.msg(chan, '\x033ok\x03')
             except:
-                self.say(chan, "\x02\x034%s" % repr(sys.exc_info()[1]))
+                self.msg(chan, "\x02\x034%s" % repr(sys.exc_info()[1]))
 
     def signedOn(self):
         #self.msg('nickserv', 'identify ' + conf.NICKSERV_PASS)
-        self.join(self.factory.channel)
-        #self.say(self.factory.channel, conf.BANNER)
+        self.join(','.join(self.factory.channels))
+        #self.msg(self.factory.channel, conf.BANNER)
+
+    def joined(self, c):
+        print 'joined', c
+        self.msg(c, 'co tam guwniaki')
 
     def connectionMade(self):
         self.nickname = self.factory.nickname
@@ -124,14 +128,8 @@ class IRCBot(irc.IRCClient):
     def privmsg(self, user, channel, msg):
         user = user.split('!', 1)[0]
         _tmp = msg.split(None, 1)
-        c, args = _tmp if len(_tmp) > 1 else (_tmp[0], None)
-        if c in self.su_commands and user in self.authed_users:
-            return self.su_commands[c](user, channel, args)
-        elif c in self.commands:
-            if time.time() - self.last_cmd > 2:
-                self.last_cmd = time.time()
-                return self.commands[c](user, channel, args)
-        elif channel == self.nickname:
+        c, args = _tmp if len(_tmp) > 1 else (_tmp[0], '')
+        if channel == self.nickname:
             al = args.split()
             if c == 'auth' and len(al) == 1:
                 pwd = al[0]
@@ -147,6 +145,14 @@ class IRCBot(irc.IRCClient):
                 if user in self.authed_users:
                     self.authed_users.discard(user)
                     return self.msg(user, 'ok')
+            else:
+                channel = user #private
+        if c in self.su_commands and user in self.authed_users:
+            return self.su_commands[c](user, channel, args)
+        elif c in self.commands:
+            if time.time() - self.last_cmd > 1:
+                self.last_cmd = time.time()
+                return self.commands[c](user, channel, args)
         for k in self.bvars['msg_cb']:
             it = self.bvars['msg_cb'][k]
             if it[0].match(msg):

@@ -74,7 +74,7 @@ class RCPSService(service.MultiService):
 
     def getIRCFactory(self, chan):
         f = IRCFactory()
-        f.channel = chan
+        f.channels = chan
         f.nickname = conf.IRC_NICK
         f.svc = self
         self.ircf.append(f)
@@ -113,7 +113,7 @@ class RCPSService(service.MultiService):
             if absolute:
                 return {k: v['_listeners'] for k,v in self.poller.server_data.iteritems()}
             else:
-                ret = {k:0 for k in conf.ICE_SERVERS}
+                ret = {k:0 for k in self.poller.server_data.keys()}
                 for mount in self.poller.values():
                     for k,v in mount['relays'].iteritems():
                         ret[k] += v
