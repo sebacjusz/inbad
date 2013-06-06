@@ -6,7 +6,7 @@
 %include "input.liq"
 
 auto_nrj = ref false
-rec_source = ref output.dummy(blank())
+rec_source = ref output.dummy(fallible=true, empty())
 
 set("server.timeout",-1.)
 
@@ -36,7 +36,8 @@ mixer.set("dj", 1.0)
 add_timeout(0.5,fun()->begin mixer.rebuild() (-1.0) end)
 sos = fallback(track_sensitive=false, [override_input, mixer.output(),idle_r])
 
-final_output = on_metadata(new_metadata, server.rms(id="final_output",sos))
+final_output = drop_metadata(on_metadata(new_metadata,
+    server.rms(id="final_output",sos)))
 
 std_icecast(%vorbis(samplerate=44100, channels=2, quality=0.6),
     mount = "vorbis-hq.ogg", final_output)
@@ -55,6 +56,8 @@ output.harbor(auth=inbad.auth_dj, mount="/monitor-flac.ogg", port=8001,
     %ogg(%flac(compression=7, bits_per_sample=16)), final_output)
 
 def start_rec2() 
+    if source.is_ready(!rec_source) then
+        source.shutdown(!rec_source) end
     rec_source := output.file(on_close=inbad.rec_stopped,
         %vorbis(samplerate=44100, channels=2,
         quality=0.6), rec_path^"%Y/%m-%d/%H:%M:%S(live).ogg",
