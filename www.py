@@ -12,7 +12,7 @@ class WebInterface(cyclone.web.Application):
                 (r'/loadbalancer.m3u', LBHandler),
                 (r'/listeners.jsonp', ListenersHandler),
                 (r'/vi_data.jsonp', ViHandler) ]
-        settings = dict(debug=True)
+        settings = dict(debug=False)
         cyclone.web.Application.__init__(self,handlers,**settings)
 
 class LBHandler(cyclone.web.RequestHandler):
