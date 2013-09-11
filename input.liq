@@ -53,10 +53,10 @@ def create_input(id)=
 end
 
 def add_http_remote(q)=
-    qq = string.split(separator='|', q)
+    qq = string.split(separator="\|", q)
     id = list.nth(qq, 0)
     url = list.nth(qq, 1)
-    s = input.http(id, url)
+    s = input.http(id=id, url)
     mixer.add(id, s)
     "ok"
 end

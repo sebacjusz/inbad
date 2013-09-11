@@ -76,7 +76,7 @@ class LiquidsoapProtocol(LineReceiver):
     def createInput(self, k):
         return self.call('create_input %s' % k).addCallback(_checkOK)
     def addHTTPRemote(self, k, url):
-        return self.call('add_http_remote %s|s' % k).addCallback(_checkOK)
+        return self.call('add_http_remote %s|%s' % (k, url)).addCallback(_checkOK)
     def rebuildMixer(self):
         return self.call('mixer.rebuild').addCallback(_checkOK)
     def pushRequest(self, k, url):
